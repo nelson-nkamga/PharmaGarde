@@ -1,0 +1,17 @@
+{% from "components/ui.html" import icon with context %}
+<ul class="catalogue" data-catalogue-items>
+  {% for m in liste %}
+  <li>
+    <a class="catalogue-item" href="{{ url_for('pharmacien.ajouter_form', medicament=m.id, q_med=q_med or None) }}">
+      <span class="catalogue-icon">{{ icon('pill') }}</span>
+      <span class="catalogue-text">
+        <strong>{{ m.nom }}</strong>
+        <span class="muted">{{ m.dosage }} · {{ m.forme }}</span>
+        <span class="catalogue-state {{ 'is-in' if m.deja_en_stock }}">{{ 'Déjà dans votre stock' if m.deja_en_stock else "Disponible à l'ajout" }}</span>
+      </span>
+    </a>
+  </li>
+  {% else %}
+  <li class="catalogue-empty muted">Aucun médicament trouvé. Vérifiez l'orthographe ou le dosage.</li>
+  {% endfor %}
+</ul>

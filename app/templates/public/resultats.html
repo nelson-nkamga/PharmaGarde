@@ -1,0 +1,90 @@
+{% extends "layouts/public.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% from "components/search.html" import search_card with context %}
+{% block title %}{{ titre }} · Médicaments · PharmaGarde Douala{% endblock %}
+{% block content %}
+<div class="container">
+  {{ search_card(quartiers, quartier.id if quartier else None, q=q, en_stock=en_stock, chip=True) }}
+
+  <h1 class="results-title">{{ titre }}</h1>
+  <p class="muted results-sub">
+    {% if lignes %}{{ nb_pharmacies }} pharmacie{{ 's' if nb_pharmacies > 1 }}{% else %}0 résultat{% endif %}
+    · {{ quartier.nom if quartier else 'Tous les quartiers' }}{% if forme_info and lignes %} · {{ forme_info }}{% endif %}{% if en_stock %} · En stock{% endif %}
+  </p>
+
+  {% if lignes %}
+  <div class="two-col results">
+    <div>
+      {% if demo_mode %}<p class="muted small results-note">Prix déclarés · À titre illustratif</p>{% endif %}
+      <div class="stack">
+        {% for l in lignes %}
+        <article class="card result-card">
+          <div class="badges">
+            {{ stock_badge(l.quantite) }}
+            {% if l.de_garde %}<span class="badge badge-green">{{ icon('clock') }}De garde</span>{% endif %}
+          </div>
+          <div class="result-top"><h2>{{ l.libelle }}</h2><span class="price">{{ l.prix|fcfa }}</span></div>
+          <p class="muted">{{ l.forme|pluriel }}{% if l.conditionnement %} · {{ l.conditionnement }}{% endif %}</p>
+          <h3 class="result-pharmacie">{{ l.pharmacie_nom }}</h3>
+          <p class="muted loc">{{ icon('map-pin') }}{{ l.quartier_nom }} · {{ l.adresse }}</p>
+          {{ fraicheur_bandeau(l.updated_at) }}
+          <div class="call-row"><a class="btn btn-primary" href="{{ l.tel_lien }}">{{ icon('phone') }}Appeler</a><span class="muted">{{ l.telephone }}</span></div>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+    <aside class="stack">
+      <div class="callout">{{ icon('phone') }}<div><strong>Un appel avant de partir</strong><p>Confirmez la disponibilité, le prix et les horaires directement avec la pharmacie.</p></div></div>
+      <section class="card legend">
+        <h2>Quand le stock a-t-il été déclaré ?</h2>
+        <ul>
+          <li class="legend-green">{{ icon('circle-check') }}<div><strong>Moins de 2 jours</strong><p>Déclaration récente.</p></div></li>
+          <li class="legend-amber">{{ icon('triangle-alert') }}<div><strong>De 2 à 7 jours</strong><p>À confirmer par téléphone.</p></div></li>
+          <li class="legend-red">{{ icon('triangle-alert') }}<div><strong>Plus de 7 jours</strong><p>Stock ancien. À confirmer par téléphone.</p></div></li>
+        </ul>
+        <p class="muted">Un stock déclaré ne garantit pas la disponibilité au moment de votre visite.</p>
+      </section>
+      {% if equivalents %}
+      <section class="card legend">
+        <h2>Équivalents</h2>
+        <p class="muted small">Même principe actif{% if medicaments_trouves and medicaments_trouves[0].principe_actif %} : {{ medicaments_trouves[0].principe_actif }}{% endif %}. Demandez conseil à un pharmacien avant de changer de médicament.</p>
+        <div class="chips">
+          {% for m in equivalents %}<a class="chip" href="{{ url_for('public.medicaments', m=m.id, quartier=quartier.id if quartier else None) }}">{{ m.libelle }}</a>{% endfor %}
+        </div>
+      </section>
+      {% endif %}
+    </aside>
+  </div>
+
+  {% else %}
+  <div class="card empty-state">
+    <span class="empty-icon">{{ icon('search-x') }}</span>
+    <h3>Aucun résultat pour ce médicament</h3>
+    <p class="muted">Aucun stock déclaré pour {{ titre }}{% if quartier %} à {{ quartier.nom }}{% endif %} avec les filtres actuels.<br>Cela ne signifie pas que le médicament est indisponible.</p>
+    <div class="btn-row btn-row-center">
+      {% if quartier or en_stock %}<a class="btn btn-primary" href="{{ url_for('public.medicaments', q=q) }}">{{ icon('map-pin') }}Tous les quartiers</a>{% endif %}
+      <a class="btn btn-outline" href="{{ url_for('public.medicaments', quartier=quartier.id if quartier else None) }}">{{ icon('search') }}Modifier la recherche</a>
+    </div>
+  </div>
+  <div class="grid grid-2 mt-sm">
+    <section class="card tip-card">
+      <span class="tip-icon">{{ icon('sliders-horizontal') }}</span>
+      <h3>Élargir la recherche</h3>
+      <p class="muted">Incluez tous les quartiers et retirez le filtre « En stock » pour voir plus de pharmacies.</p>
+      <a class="btn btn-outline" href="{{ url_for('public.medicaments', q=q) }}">{{ icon('rotate-ccw') }}Réinitialiser les filtres</a>
+    </section>
+    <section class="card tip-card">
+      <span class="tip-icon">{{ icon('pill') }}</span>
+      <h3>Vérifier le nom et le dosage</h3>
+      <p class="muted">Vérifiez l'orthographe. Un autre dosage ne remplace pas celui de votre ordonnance sans conseil professionnel.</p>
+      <div class="chips">
+        {% for m in similaires %}<a class="chip" href="{{ url_for('public.medicaments', m=m.id, quartier=quartier.id if quartier else None) }}">{{ icon('search') }}{{ m.libelle }}</a>{% endfor %}
+        {% for m in equivalents[:3] %}<a class="chip" href="{{ url_for('public.medicaments', m=m.id, quartier=quartier.id if quartier else None) }}">{{ icon('search') }}{{ m.libelle }}</a>{% endfor %}
+      </div>
+    </section>
+  </div>
+  <div class="callout">{{ icon('phone') }}<div><strong>Besoin d'un conseil ?</strong><p>Consultez les pharmacies de garde et appelez pour vérifier votre médicament directement avec un pharmacien.</p></div></div>
+  <a class="btn btn-outline mt-sm" href="{{ url_for('public.accueil') }}">{{ icon('arrow-left') }}Voir les pharmacies de garde</a>
+  {% endif %}
+</div>
+{% endblock %}

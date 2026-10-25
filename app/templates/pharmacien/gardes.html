@@ -1,0 +1,43 @@
+{% extends "layouts/pharmacien.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% macro carte(g, etat) %}
+<article class="card garde-card">
+  <div>
+    <p class="muted">{{ g.debut|jour_fr }}</p>
+    <h3>{{ g.debut|date_fr }}</h3>
+    <p class="garde-time">{{ icon('sun' if g.type_garde == 'Garde de jour' else 'moon') }}<strong>{{ g.debut|heure_fr }}–{{ g.fin|heure_fr }} · {{ g.type_garde }}</strong></p>
+    <p class="muted garde-detail">Début le {{ g.debut|date_fr }} à {{ g.debut|heure_fr }}. Fin le {{ g.fin|date_fr }} à {{ g.fin|heure_fr }}{% if g.fin is lendemain(g.debut) %} (le lendemain){% endif %}.</p>
+    <p class="muted">{{ user.pharmacie_label }}</p>
+  </div>
+  {% if etat == 'en_cours' %}<span class="status status-green">{{ icon('clock') }}En cours</span>
+  {% elif etat == 'a_venir' %}<span class="status status-green">{{ icon('calendar-days') }}À venir</span>
+  {% else %}<span class="status status-grey">{{ icon('circle-check') }}Passée</span>{% endif %}
+</article>
+{% endmacro %}
+{% block title %}Mes gardes · Espace pharmacien{% endblock %}
+{% block content %}
+<div class="container">
+  <p class="eyebrow">Espace pharmacien</p>
+  <h1>Mes gardes</h1>
+  <p class="lead">Consultez les gardes de votre pharmacie. Le planning est en lecture seule.</p>
+  <p class="muted">{{ now|date_fr }} · {{ now|heure_fr }}{% if demo_mode %} · Démonstration{% endif %}</p>
+
+  <div class="callout callout-flat">{{ icon('info') }}
+    {% if en_cours %}<p>Garde en cours depuis le {{ en_cours.debut|date_fr }} à {{ en_cours.debut|heure_fr }}. Elle se termine le {{ en_cours.fin|date_fr }} à {{ en_cours.fin|heure_fr }}.</p>
+    {% elif prochaine %}<p>Aucune garde en cours le {{ now|date_fr }} à {{ now|heure_fr }}. Votre prochaine garde commence le {{ prochaine.debut|date_fr(False) }} à {{ prochaine.debut|heure_fr }}.</p>
+    {% else %}<p>Aucune garde en cours et aucune garde à venir n'est planifiée pour votre pharmacie.</p>{% endif %}
+  </div>
+
+  <h2 class="month-title">{{ icon('calendar-days') }}{{ now|mois_annee }}</h2>
+  {% if en_cours %}
+  <h3 class="sub-title">En cours · 1 garde</h3>{{ carte(en_cours, 'en_cours') }}
+  {% endif %}
+  <h3 class="sub-title">À venir · {{ a_venir|length }} garde{{ 's' if a_venir|length > 1 }}</h3>
+  {% for g in a_venir %}{{ carte(g, 'a_venir') }}{% else %}<p class="muted">Aucune garde à venir.</p>{% endfor %}
+
+  <h3 class="sub-title">Gardes passées · {{ passees|length }} garde{{ 's' if passees|length > 1 }}</h3>
+  {% for g in passees %}{{ carte(g, 'terminee') }}{% else %}<p class="muted">Aucune garde passée.</p>{% endfor %}
+
+  <p class="muted small mt">Pour modifier une garde, contactez l'administrateur du groupement.{% if demo_mode %} Les horaires présentés sont illustratifs et ne constituent pas un planning opérationnel vérifié.{% endif %}</p>
+</div>
+{% endblock %}

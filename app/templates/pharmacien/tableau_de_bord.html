@@ -1,0 +1,66 @@
+{% extends "layouts/pharmacien.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% block title %}Tableau de bord · Espace pharmacien{% endblock %}
+{% block content %}
+<div class="container">
+  <p class="eyebrow">Espace pharmacien</p>
+  <h1>Tableau de bord</h1>
+  <p class="lead">Bonjour, voici l'essentiel pour votre pharmacie.</p>
+  <p class="muted">{{ now|date_fr }} · {{ now|heure_fr }}{% if demo_mode %} · Démonstration{% endif %}</p>
+  {{ messages() }}
+
+  <div class="grid grid-4 kpis">
+    <article class="card kpi">
+      <span class="kpi-icon kpi-green">{{ icon('package') }}</span>
+      <h2>Produits en stock</h2>
+      <p class="kpi-value">{{ totaux.en_stock }}</p>
+      <p class="muted">Sur {{ totaux.total }} médicaments référencés</p>
+    </article>
+    <article class="card kpi">
+      <span class="kpi-icon kpi-red">{{ icon('package-x') }}</span>
+      <h2>Produits en rupture</h2>
+      <p class="kpi-value text-red">{{ totaux.rupture }}</p>
+      <p class="muted">Quantité déclarée : 0</p>
+    </article>
+    <article class="card kpi {{ 'card-warn' if anciennes }}">
+      <span class="kpi-icon kpi-amber">{{ icon('triangle-alert') }}</span>
+      <h2>Non mis à jour depuis plus de 7 jours</h2>
+      <p class="kpi-value {{ 'text-amber' if anciennes }}">{{ anciennes|length }}</p>
+      <p class="muted">
+        {% if anciennes %}{% for l in anciennes[:2] %}{{ l.nom }}{{ ' et ' if loop.first and anciennes|length == 2 else ('' if loop.last else ', ') }}{% endfor %}{% if anciennes|length > 2 %} et {{ anciennes|length - 2 }} autre{{ 's' if anciennes|length > 3 }}{% endif %}
+        {% else %}Tous vos produits sont à jour{% endif %}
+      </p>
+    </article>
+    <article class="card kpi">
+      <span class="kpi-icon kpi-green">{{ icon('calendar-days') }}</span>
+      <h2>Prochaine garde</h2>
+      {% if prochaine %}
+        <p class="kpi-value kpi-date">{{ prochaine.debut|date_fr(False) }}</p>
+        <p class="muted">{{ prochaine.debut|heure_fr }}–{{ prochaine.fin|heure_fr }} · fin le {{ prochaine.fin|date_fr }}</p>
+      {% else %}
+        <p class="kpi-value kpi-date">Aucune</p><p class="muted">Aucune garde planifiée</p>
+      {% endif %}
+    </article>
+  </div>
+
+  <h2 class="section-title">Vos raccourcis</h2>
+  <div class="btn-row">
+    <a class="btn btn-primary" href="{{ url_for('pharmacien.stocks') }}">{{ icon('package') }}Mettre à jour mes stocks</a>
+    <a class="btn btn-outline" href="{{ url_for('pharmacien.gardes') }}">{{ icon('calendar-days') }}Voir mes gardes</a>
+  </div>
+
+  {% if anciennes %}
+  <section class="card todo">
+    <span class="pill pill-amber">{{ icon('triangle-alert') }}À mettre à jour</span>
+    <h3>Des informations récentes, un service plus utile</h3>
+    <p class="muted">{{ 'Un médicament n\'a' if anciennes|length == 1 else (anciennes|length ~ ' médicaments n\'ont') }} pas été actualisé{{ 's' if anciennes|length > 1 }} depuis plus de 7 jours. Confirmez {{ 'sa' if anciennes|length == 1 else 'leur' }} quantité et {{ 'son' if anciennes|length == 1 else 'leur' }} prix pour mieux informer les habitants de Douala.</p>
+    <ul class="todo-list">
+      {% for l in anciennes[:6] %}<li><strong>{{ l.nom }}</strong> · {{ (l.updated_at|anciennete(now)).jours }} jours</li>{% endfor %}
+      {% if anciennes|length > 6 %}<li class="muted">et {{ anciennes|length - 6 }} autre(s)…</li>{% endif %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <div class="callout">{{ icon('shield-check') }}<p>Vous gérez uniquement les stocks de votre pharmacie. Vos gardes sont consultables en lecture seule.</p></div>
+</div>
+{% endblock %}

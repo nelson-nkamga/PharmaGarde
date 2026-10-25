@@ -1,0 +1,63 @@
+{% extends "layouts/public.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% from "components/search.html" import search_card with context %}
+{% block title %}Pharmacies de garde aujourd'hui · PharmaGarde Douala{% endblock %}
+{% block content %}
+<section class="container hero">
+  <div class="hero-meta"><span class="pill pill-green">{{ icon('clock') }}De garde maintenant</span><span class="muted">Douala, Cameroun</span></div>
+  <h1>Pharmacies de garde aujourd'hui</h1>
+  <p class="lead">Trouvez une pharmacie ouverte près de vous et appelez avant de partir.</p>
+  <p class="hero-date muted">{{ icon('calendar') }}{{ now|date_fr }} · {{ now|heure_fr }}{% if demo_mode %} — Instantané de démonstration{% endif %}</p>
+</section>
+
+<div class="container">
+  {{ search_card(quartiers, quartier.id if quartier else None, home=True) }}
+
+  <div class="section-head">
+    <h2>Les pharmacies de garde</h2>
+    <span class="muted">{{ gardes|length }} pharmacie{{ 's' if gardes|length > 1 }}{% if gardes|length == 0 %} de garde{% endif %} · {{ quartier.nom if quartier else 'Tous les quartiers' }}</span>
+  </div>
+
+  {% if gardes %}
+  <div class="grid grid-3">
+    {% for g in gardes %}
+    <article class="card pharmacy-card">
+      <p class="card-loc">{{ icon('map-pin') }}{{ g.quartier_nom }}</p>
+      <h3>{{ g.pharmacie_nom }}</h3>
+      <p class="muted pharmacy-address">{{ g.adresse }}</p>
+      <p class="card-duty">{{ icon('clock') }}De garde jusqu'à {{ g.fin|heure_fr }}</p>
+      <div class="btn-row">
+        <a class="btn btn-primary" href="{{ g.tel_lien }}">{{ icon('phone') }}Appeler</a>
+        <a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query={{ (g.pharmacie_nom ~ ' ' ~ g.adresse ~ ' Douala')|urlencode }}">{{ icon('navigation') }}Itinéraire</a>
+      </div>
+      <p class="card-phone muted">{{ g.telephone }}</p>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card empty-state">
+    <span class="empty-icon">{{ icon('map-pin-off') }}</span>
+    <h3>Aucune pharmacie de garde{% if quartier %} dans ce quartier{% endif %}</h3>
+    <p class="muted">{% if quartier %}Aucune garde n'est renseignée à {{ quartier.nom }} pour cet instant. Élargissez votre recherche aux autres quartiers de Douala.{% else %}Aucune garde n'est renseignée pour cet instant. Rappelez une pharmacie du quartier pour confirmer.{% endif %}</p>
+    {% if quartier %}<a class="btn btn-primary" href="{{ url_for('public.accueil') }}">{{ icon('map-pin') }}Tous les quartiers</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if not gardes %}
+  <h2 class="mt">Choisir un autre quartier</h2>
+  <div class="chips">
+    {% for qt in quartiers %}<a class="chip chip-lg {{ 'chip-on' if quartier and quartier.id == qt.id }}" href="{{ url_for('public.accueil', quartier=qt.id) }}">{{ qt.nom }}{% if quartier and quartier.id == qt.id %}{{ icon('circle-check') }}{% endif %}</a>{% endfor %}
+  </div>
+  <div class="callout">{{ icon('phone') }}<div><strong>Une garde peut évoluer</strong><p>Cette liste est illustrative. Confirmez toujours les horaires directement avec la pharmacie.</p></div></div>
+  {% else %}
+  <section class="card tips">
+    <h2>Avant de vous déplacer</h2>
+    <div class="tips-grid">
+      <div class="tip"><span class="tip-icon">{{ icon('pill') }}</span><div><strong>Précisez le médicament</strong><p class="muted">Indiquez le dosage et la forme recherchés.</p></div></div>
+      <div class="tip"><span class="tip-icon">{{ icon('phone') }}</span><div><strong>Confirmez par téléphone</strong><p class="muted">Demandez le stock et le prix en FCFA.</p></div></div>
+      <div class="tip"><span class="tip-icon">{{ icon('map-pin') }}</span><div><strong>Vérifiez votre trajet</strong><p class="muted">Confirmez l'adresse et l'heure de fermeture.</p></div></div>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

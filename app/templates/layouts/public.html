@@ -1,0 +1,28 @@
+{% extends "layouts/base.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% block body %}
+<header class="site-header">
+  <div class="container header-row">
+    {{ logo(url_for('public.accueil')) }}
+    <nav class="main-nav" aria-label="Navigation principale">
+      <a href="{{ url_for('public.accueil') }}" class="{{ 'is-active' if endpoint == 'public.accueil' }}">De garde</a>
+      <a href="{{ url_for('public.medicaments') }}" class="{{ 'is-active' if endpoint == 'public.medicaments' }}">Médicaments</a>
+    </nav>
+    {% if user and user.role == 'pharmacien' %}
+      <a class="header-link" href="{{ url_for('pharmacien.tableau_de_bord') }}">{{ icon('log-in') }}<span>Mon espace</span></a>
+    {% elif user and user.role == 'admin' %}
+      <a class="header-link" href="{{ url_for('admin.tableau_de_bord') }}">{{ icon('log-in') }}<span>Administration</span></a>
+    {% else %}
+      <a class="header-link" href="{{ url_for('auth.connexion') }}">{{ icon('log-in') }}<span>Espace pharmacien</span></a>
+    {% endif %}
+  </div>
+</header>
+<main class="page">{% block content %}{% endblock %}</main>
+<footer class="site-footer">
+  <div class="container">
+    <p class="footer-strong">{{ icon('shield-check') }}Les stocks sont déclarés par les pharmacies. Appelez avant de vous déplacer.</p>
+    {% if demo_mode %}<p class="muted">Données illustratives : pharmacies, adresses, prix et disponibilités non vérifiés.</p>{% endif %}
+    <p class="muted">PharmaGarde Douala · Espace public</p>
+  </div>
+</footer>
+{% endblock %}

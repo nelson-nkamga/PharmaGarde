@@ -1,0 +1,199 @@
+{% extends "layouts/pharmacien.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% set lignes = data.lignes %}
+{% set t = data.totaux %}
+{% block title %}Mes stocks · Espace pharmacien{% endblock %}
+{% block content %}
+<div class="container">
+  <p class="eyebrow">Espace pharmacien</p>
+  <h1>Mes stocks</h1>
+  <p class="lead">Actualisez les quantités et les prix de vos médicaments.</p>
+  <p class="muted">{{ now|date_fr }} · {{ now|heure_fr }}{% if demo_mode %} · Démonstration{% endif %}</p>
+
+  {{ messages() }}
+
+  <div class="btn-row mt-sm">
+    <a class="btn btn-primary" href="{{ url_for('pharmacien.ajouter_form') }}">{{ icon('plus') }}Ajouter un médicament</a>
+    <a class="btn btn-outline" href="{{ url_for('pharmacien.importer_form') }}">{{ icon('upload') }}Importer un CSV</a>
+  </div>
+
+  <form class="card filter-card" method="get" action="{{ url_for('pharmacien.stocks') }}" role="search">
+    <label class="strong" for="q">Rechercher dans mes stocks</label>
+    <div class="searchbox searchbox-plain">
+      <input id="q" name="q" type="search" value="{{ data.q }}" placeholder="Nom, dosage ou forme" autocomplete="off" maxlength="60">
+      <button class="searchbox-btn" type="submit" aria-label="Rechercher">{{ icon('search') }}</button>
+    </div>
+    {% if data.filtre != 'tous' %}<input type="hidden" name="filtre" value="{{ data.filtre }}">{% endif %}
+    <div class="chips">
+      {% for cle, libelle in (('tous', 'Tous'), ('en_stock', 'En stock'), ('rupture', 'En rupture'), ('a_mettre_a_jour', 'À mettre à jour')) %}
+      <a class="chip {{ 'chip-on' if data.filtre == cle }}" href="{{ url_for('pharmacien.stocks', q=data.q or None, filtre=cle if cle != 'tous' else None) }}">{{ libelle }}</a>
+      {% endfor %}
+    </div>
+  </form>
+
+  <p class="muted small count-line">{{ t.total }} médicament{{ 's' if t.total > 1 }} · {{ t.en_stock }} en stock · {{ t.rupture }} en rupture</p>
+
+  <div class="table-card">
+    <div class="table-scroll">
+    <table class="table">
+      <thead><tr><th>Médicament</th><th>Dosage</th><th>Forme</th><th>Quantité</th><th>Prix (FCFA)</th><th>Dernière mise à jour</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for l in lignes %}
+        {% if modifier_id == l.medicament_id %}
+        <tr class="row-edit">
+          <th scope="row">{{ l.nom }}</th><td>{{ l.dosage }}</td><td class="muted">{{ l.forme }}</td>
+          <td>
+            <label class="mini-label" for="edit-quantite">Quantité</label>
+            <input form="form-edit" class="input input-sm {{ 'is-invalid' if erreurs.quantite }}" id="edit-quantite" name="quantite" inputmode="numeric" autocomplete="off" value="{{ valeurs.quantite if valeurs else l.quantite }}" required>
+          </td>
+          <td>
+            <label class="mini-label" for="edit-prix">Prix (FCFA)</label>
+            <input form="form-edit" class="input input-sm {{ 'is-invalid' if erreurs.prix }}" id="edit-prix" name="prix" inputmode="numeric" autocomplete="off" value="{{ valeurs.prix if valeurs else l.prix }}" required>
+          </td>
+          <td>{{ fraicheur_ligne(l.updated_at) }}</td>
+          <td class="actions-col">
+            <button form="form-edit" class="btn btn-primary btn-sm" type="submit">Enregistrer</button>
+            <a class="btn btn-outline btn-sm" href="{{ url_stocks() }}">Annuler</a>
+            <button form="form-edit" class="link-danger" type="submit" formaction="{{ url_for('pharmacien.retirer_stock', medicament_id=l.medicament_id) }}" data-confirm="Retirer {{ l.nom }} {{ l.dosage }} de votre stock ?">Retirer du stock</button>
+          </td>
+        </tr>
+        {% if erreurs %}
+        <tr class="row-errors"><td colspan="7">
+          {% for champ in ('quantite', 'prix') %}{% if erreurs[champ] %}<div class="alert alert-red" role="alert">{{ icon('triangle-alert') }}<span>{{ erreurs[champ] }}</span></div>{% endif %}{% endfor %}
+        </td></tr>
+        {% endif %}
+        {% else %}
+        {% set saved = surligne and surligne.medicament_id == l.medicament_id %}
+        <tr class="{{ 'row-saved' if saved }}">
+          <th scope="row">{{ l.nom }}{% if saved %}<span class="saved-note">Enregistré à {{ surligne.heure }}</span>{% endif %}</th>
+          <td>{{ l.dosage }}</td><td class="muted">{{ l.forme }}</td>
+          <td><span class="qty">{{ l.quantite }}</span>{{ stock_badge(l.quantite) }}</td>
+          <td class="strong">{{ l.prix|nombre }}</td>
+          <td>{{ fraicheur_ligne(l.updated_at) }}</td>
+          <td><a class="btn btn-outline btn-sm" href="{{ url_stocks(modifier=l.medicament_id) }}">{{ icon('pencil') }}Modifier</a></td>
+        </tr>
+        {% endif %}
+      {% else %}
+        <tr><td colspan="7" class="table-empty muted">Aucun médicament ne correspond à ces critères.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  {% if modifier_id %}
+  <form id="form-edit" method="post" action="{{ url_for('pharmacien.modifier_stock', medicament_id=modifier_id) }}">
+    {{ csrf() }}
+    <input type="hidden" name="q" value="{{ data.q }}"><input type="hidden" name="filtre" value="{{ data.filtre }}"><input type="hidden" name="page" value="{{ data.page }}">
+  </form>
+  {% endif %}
+
+  {% if t.total %}{{ pagination(data.page, data.pages, url_stocks, data.debut, data.fin, t.total, data.per_page, 'médicaments') }}{% endif %}
+</div>
+{% endblock %}
+
+{% block modal %}
+{% if modal %}
+<div class="modal-backdrop" data-modal>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 id="modal-title">{{ 'Ajouter un médicament au stock' if modal == 'ajouter' else 'Importer un CSV' }}</h2>
+      <a class="modal-close" href="{{ url_for('pharmacien.stocks') }}" aria-label="Fermer" data-modal-close>{{ icon('x') }}</a>
+    </div>
+    <p class="modal-pharmacie">{{ user.pharmacie_label }}</p>
+
+    {% if modal == 'ajouter' %}
+      <p class="muted">Recherchez le nom, puis vérifiez le dosage et la forme.</p>
+      <form method="get" action="{{ url_for('pharmacien.ajouter_form') }}" data-catalogue-form data-partial-url="{{ url_for('pharmacien.ajouter_form', partial=1) }}">
+        <label class="strong" for="q_med">Médicament</label>
+        <div class="searchbox searchbox-plain">
+          <input id="q_med" name="q_med" type="search" value="{{ q_med or (selection.nom if selection and existant else '') }}" placeholder="Rechercher un médicament" autocomplete="off" maxlength="60" data-catalogue-input>
+          <button class="searchbox-btn" type="submit" aria-label="Rechercher">{{ icon('search') }}</button>
+        </div>
+      </form>
+
+      {% if existant %}
+        <div class="alert alert-amber" role="alert">{{ icon('triangle-alert') }}<span>Ce médicament est déjà dans votre stock</span></div>
+        <div class="existing-card">
+          <h3>{{ existant.nom }}</h3>
+          <p class="muted">{{ existant.dosage }} · {{ existant.forme }}</p>
+          <p class="strong">{{ existant.quantite }} unités · {{ existant.prix|fcfa }}</p>
+          <p class="muted">Mis à jour le {{ existant.updated_at|date_fr }}</p>
+        </div>
+        <p class="muted">Modifiez l'article existant ou choisissez un autre médicament pour éviter un doublon.</p>
+        <a class="btn btn-primary btn-block" href="{{ url_stocks(modifier=existant.medicament_id) }}">{{ icon('pencil') }}Modifier ce médicament</a>
+        <a class="btn btn-outline btn-block" href="{{ url_for('pharmacien.ajouter_form') }}">Choisir un autre médicament</a>
+        <a class="btn btn-outline btn-block" href="{{ url_for('pharmacien.stocks') }}">Annuler</a>
+      {% else %}
+        {% if selection %}
+          <div class="selected-med">
+            <span class="catalogue-icon">{{ icon('pill') }}</span>
+            <div><strong>{{ selection.nom }}</strong><span class="muted">{{ selection.dosage }} · {{ selection.forme }}</span></div>
+            <a class="link-small" href="{{ url_for('pharmacien.ajouter_form', q_med=q_med or None) }}">Changer</a>
+          </div>
+        {% else %}
+          <div data-catalogue-list>{% include "pharmacien/_liste_catalogue.html" %}</div>
+        {% endif %}
+        {% if form_erreurs.medicament %}<p class="field-error">{{ form_erreurs.medicament }}</p>{% endif %}
+        <form method="post" action="{{ url_for('pharmacien.ajouter') }}" data-add-form>
+          {{ csrf() }}
+          {% if selection %}<input type="hidden" name="medicament_id" value="{{ selection.id }}">{% endif %}
+          <label class="strong" for="add-quantite">Quantité</label>
+          <input class="input {{ 'is-invalid' if form_erreurs.quantite }}" id="add-quantite" name="quantite" inputmode="numeric" placeholder="Ex. 20" autocomplete="off" value="{{ form_valeurs.quantite }}" {{ 'disabled' if not selection }}>
+          {% if form_erreurs.quantite %}<p class="field-error">{{ form_erreurs.quantite }}</p>{% endif %}
+          <label class="strong" for="add-prix">Prix (FCFA)</label>
+          <input class="input {{ 'is-invalid' if form_erreurs.prix }}" id="add-prix" name="prix" inputmode="numeric" placeholder="Ex. 1 500" autocomplete="off" value="{{ form_valeurs.prix }}" {{ 'disabled' if not selection }}>
+          {% if form_erreurs.prix %}<p class="field-error">{{ form_erreurs.prix }}</p>{% endif %}
+          {% if not selection %}<p class="muted">Sélectionnez un médicament pour activer l'ajout.</p>{% endif %}
+          <button class="btn btn-primary btn-block" type="submit" {{ 'disabled' if not selection }}>Ajouter</button>
+          <a class="btn btn-outline btn-block" href="{{ url_for('pharmacien.stocks') }}">Annuler</a>
+        </form>
+      {% endif %}
+
+    {% else %}
+      <p class="muted">Importez uniquement les stocks de votre pharmacie. Aucun changement ne sera appliqué avant votre confirmation.</p>
+      <form method="post" action="{{ url_for('pharmacien.importer') }}" enctype="multipart/form-data" data-import-form>
+        {{ csrf() }}
+        <div class="dropzone" data-dropzone>
+          {{ icon('file-up') }}
+          <strong>Déposez votre fichier CSV ici</strong>
+          <span class="muted" data-file-name>{{ apercu.nom_fichier if apercu else 'Aucun fichier sélectionné' }}</span>
+          <label class="btn btn-outline">Choisir un fichier<input type="file" name="fichier" accept=".csv,text/csv" class="visually-hidden" data-file-input></label>
+          <span class="muted small">.csv uniquement · 2 Mo maximum</span>
+        </div>
+        <noscript><button class="btn btn-outline btn-block" type="submit">Analyser le fichier</button></noscript>
+      </form>
+      {% if erreur_fichier %}<div class="alert alert-red" role="alert">{{ icon('triangle-alert') }}<span>{{ erreur_fichier }}</span></div>{% endif %}
+
+      <h3 class="modal-sub">Préparer votre fichier</h3>
+      <p class="muted">CSV UTF-8, séparateur point-virgule (;). Une ligne par médicament, avec les colonnes suivantes :</p>
+      <div class="code-card"><strong>medicament ; dosage ; forme ; quantite ; prix_fcfa</strong><span class="muted">Exemple de ligne :</span><span>Paracétamol ; 500 mg ; Comprimé ; 120 ; 500</span></div>
+      <a class="btn btn-outline btn-block" href="{{ url_for('pharmacien.modele_csv') }}">{{ icon('download') }}Télécharger le modèle CSV</a>
+      <p class="muted small">La quantité doit être un entier ≥ 0. Le prix doit être supérieur à 0, sans espaces ni « FCFA ».</p>
+
+      <div class="preview-card">
+        <p class="preview-title">{{ icon('list-checks') }}<strong>Aperçu après sélection</strong></p>
+        {% if apercu %}
+          <p>{{ apercu.lignes|length }} ligne{{ 's' if apercu.lignes|length > 1 }} valide{{ 's' if apercu.lignes|length > 1 }} · {{ apercu.nb_ajouts }} à ajouter · {{ apercu.nb_maj }} à mettre à jour{% if apercu.erreurs %} · <span class="text-red">{{ apercu.erreurs|length }} erreur{{ 's' if apercu.erreurs|length > 1 }}</span>{% endif %}</p>
+          {% if apercu.erreurs %}
+          <ul class="preview-errors">{% for e in apercu.erreurs[:10] %}<li>{{ icon('triangle-alert') }}<span><strong>Ligne {{ e.ligne }}</strong> : {{ e.message }}</span></li>{% endfor %}{% if apercu.erreurs|length > 10 %}<li class="muted">et {{ apercu.erreurs|length - 10 }} autre(s) erreur(s)…</li>{% endif %}</ul>
+          {% endif %}
+          {% if apercu.lignes %}
+          <ul class="preview-lines">{% for l in apercu.lignes[:6] %}<li><span>{{ l.libelle }}</span><span class="muted">{{ l.quantite }} · {{ l.prix|nombre }} FCFA · {{ 'mise à jour' if l.action == 'maj' else 'ajout' }}</span></li>{% endfor %}{% if apercu.lignes|length > 6 %}<li class="muted">et {{ apercu.lignes|length - 6 }} autre(s) ligne(s)…</li>{% endif %}</ul>
+          {% endif %}
+        {% else %}
+          <p class="muted">Les lignes valides et les erreurs seront affichées ici. Les doublons seront signalés par nom, dosage et forme.</p>
+        {% endif %}
+      </div>
+      <div class="alert alert-amber">{{ icon('triangle-alert') }}<span>Les médicaments existants seront mis à jour ; les nouveaux seront ajoutés. Corrigez les lignes invalides avant d'importer.</span></div>
+      <form method="post" action="{{ url_for('pharmacien.importer_confirmer') }}">
+        {{ csrf() }}
+        {% if apercu and apercu.token %}<input type="hidden" name="token" value="{{ apercu.token }}">{% endif %}
+        <button class="btn btn-primary btn-block" type="submit" {{ 'disabled' if not (apercu and apercu.token) }}>Importer</button>
+      </form>
+      <a class="btn btn-outline btn-block" href="{{ url_for('pharmacien.stocks') }}">Annuler</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

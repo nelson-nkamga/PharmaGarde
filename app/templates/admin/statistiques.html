@@ -1,0 +1,82 @@
+{% extends "layouts/admin.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% block title %}Statistiques · Administration PharmaGarde{% endblock %}
+{% block content %}
+<p class="eyebrow">Espace administrateur</p>
+<h1>Statistiques</h1>
+<p class="lead">Analysez les prix, les recherches et la répartition des gardes à Douala.</p>
+<p class="muted">{{ now|date_fr }} · {{ now|heure_fr }}{% if demo_mode %} · Démonstration{% endif %}</p>
+{% if demo_mode %}<div class="callout callout-flat">{{ icon('info') }}<p>Statistiques de démonstration. Les chiffres, prix et périodes présentés sont illustratifs et non vérifiés.</p></div>{% endif %}
+
+<div class="stats-grid">
+  <section class="card panel">
+    <h2>Prix par médicament</h2>
+    <p class="muted small">Prix déclarés en FCFA · {{ prix.lignes|length }} exemple{{ 's' if prix.lignes|length > 1 }} du catalogue de {{ prix.catalogue }} médicaments.</p>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('admin.export_prix', q=prix.q or None) }}">{{ icon('download') }}Exporter en CSV</a>
+    <form method="get" action="{{ url_for('admin.statistiques') }}" role="search" class="stat-search">
+      {% if recherches.periode != '30' %}<input type="hidden" name="periode" value="{{ recherches.periode }}">{% endif %}
+      <label class="strong small" for="sq">Rechercher un médicament</label>
+      <div class="searchbox searchbox-plain"><input id="sq" name="q" type="search" value="{{ prix.q }}" placeholder="Nom ou dosage" autocomplete="off" maxlength="60"><button class="searchbox-btn" type="submit" aria-label="Rechercher">{{ icon('search') }}</button></div>
+    </form>
+    <div class="table-scroll mini-table"><table class="table table-compact">
+      <thead><tr><th>Médicament</th><th class="num">Min.</th><th class="num">Moyen</th><th class="num">Max.</th></tr></thead>
+      <tbody>{% for l in prix.lignes %}<tr><th scope="row">{{ l.nom }} {{ l.dosage }}</th><td class="num">{{ l.prix_min|nombre }}</td><td class="num">{{ l.prix_moyen|nombre }}</td><td class="num">{{ l.prix_max|nombre }}</td></tr>
+      {% else %}<tr><td colspan="4" class="table-empty muted">Aucun médicament ne correspond.</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <p class="muted small">Les prix sont indicatifs. Les médicaments en rupture conservent leur dernier prix déclaré.</p>
+  </section>
+
+  <section class="card panel">
+    <h2>Médicaments les plus recherchés</h2>
+    <p class="muted small">Les 10 recherches les plus fréquentes · Nombre de recherches, pas de références du catalogue.</p>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('admin.export_recherches', periode=recherches.periode) }}">{{ icon('download') }}Exporter en CSV</a>
+    <form method="get" action="{{ url_for('admin.statistiques') }}" class="stat-search" data-autosubmit>
+      {% if prix.q %}<input type="hidden" name="q" value="{{ prix.q }}">{% endif %}
+      <label class="strong small" for="periode">Période</label>
+      <div class="selectbox selectbox-plain"><select class="input" id="periode" name="periode">
+        {% for cle, (libelle, jours) in recherches.periodes.items() %}<option value="{{ cle }}" {{ 'selected' if cle == recherches.periode }}>{{ libelle }}</option>{% endfor %}
+      </select>{{ icon('chevron-down') }}</div>
+      <noscript><button class="btn btn-outline btn-sm" type="submit">Appliquer</button></noscript>
+    </form>
+    <p class="muted small">{{ recherches.debut|date_fr(False) }}–{{ recherches.fin|date_fr }}</p>
+    {% if recherches.lignes %}
+    <p class="muted small">Échelle commune : 0 à {{ recherches.echelle|nombre }} recherches</p>
+    <ul class="bars">
+      {% for l in recherches.lignes %}
+      <li><div class="bar-head"><span>{{ l.libelle }}</span><strong>{{ l.nb|nombre }}</strong></div><div class="bar"><span class="bar-fill w-{{ l.pct }}"></span></div></li>
+      {% endfor %}
+    </ul>
+    <div class="axis">{% for t in recherches.ticks %}<span>{{ t|nombre }}</span>{% endfor %}</div>
+    {% else %}<p class="muted">Aucune recherche enregistrée sur cette période.</p>{% endif %}
+  </section>
+
+  <section class="card panel">
+    <h2>Nombre de gardes par pharmacie</h2>
+    <p class="muted small">Semaines 1 à {{ gardes.cycle.n }} · {{ gardes.cycle.debut|date_fr(False) }}–{{ gardes.fin|date_fr }} · {{ gardes.lignes|length }} pharmacies actives, triées par nombre de gardes.</p>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('admin.export_gardes') }}">{{ icon('download') }}Exporter en CSV</a>
+    {% if gardes.alerte %}<div class="alert alert-amber">{{ icon('triangle-alert') }}<span>{{ gardes.alerte }}</span></div>{% endif %}
+    <p class="muted small">Échelle commune : 0 à {{ gardes.echelle }}</p>
+    <ul class="bars">
+      {% for l in gardes.lignes %}
+      <li><div class="bar-head"><span>{{ l.nom }}</span><strong class="{{ 'text-amber' if l.niveau }}">{{ l.nb_gardes }}</strong></div>
+        <div class="bar"><span class="bar-fill {{ 'bar-amber' if l.niveau }} w-{{ l.pct }}"></span></div>
+        {% if l.niveau == 'eleve' %}<span class="pill pill-amber">{{ icon('triangle-alert') }}Charge élevée</span>{% elif l.niveau == 'faible' %}<span class="pill pill-amber">{{ icon('triangle-alert') }}Faible attribution</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="axis">{% for t in gardes.ticks %}<span>{{ t }}</span>{% endfor %}</div>
+    {% if demo_mode %}<p class="muted small">Ces volumes de démonstration ne constituent pas un planning validé.</p>{% endif %}
+  </section>
+
+  <section class="card panel">
+    <h2>Médicaments en rupture partout</h2>
+    <p class="muted small">Situation déclarée au {{ ruptures.now|date_fr }} à {{ ruptures.now|heure_fr }}. Aucun stock disponible dans le réseau actif.</p>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('admin.export_ruptures') }}">{{ icon('download') }}Exporter en CSV</a>
+    <span class="pill pill-red">{{ icon('triangle-alert') }}{{ ruptures.lignes|length }} médicament{{ 's' if ruptures.lignes|length > 1 }}</span>
+    {% for r in ruptures.lignes %}
+    <div class="rupture-card">{{ icon('triangle-alert') }}<div><strong>{{ r.nom }} {{ r.dosage }}</strong><span>En rupture partout · 0 unité déclarée</span><small>Aucune disponibilité dans le réseau actif{% if demo_mode %} · données de démonstration{% endif %}</small></div></div>
+    {% else %}<p class="muted">Aucun médicament n'est en rupture dans tout le réseau.</p>{% endfor %}
+    <div class="alert alert-amber">{{ icon('triangle-alert') }}<span>Les déclarations peuvent être anciennes. Confirmez la situation auprès des pharmacies avant toute décision.</span></div>
+  </section>
+</div>
+{% endblock %}

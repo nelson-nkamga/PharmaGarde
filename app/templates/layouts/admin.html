@@ -1,0 +1,36 @@
+{% extends "layouts/base.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block body_class %}admin{% endblock %}
+{% block body %}
+<header class="site-header admin-header">
+  <div class="admin-header-row">
+    {{ logo(url_for('admin.tableau_de_bord')) }}
+    <div class="admin-header-right">
+      <strong>Espace administrateur</strong>
+      {% if demo_mode %}<span class="pill pill-grey">{{ icon('info') }}Démonstration</span>{% endif %}
+      <span class="avatar" title="{{ user.email }}">{{ icon('shield-check') }}</span>
+    </div>
+  </div>
+</header>
+<div class="admin-shell">
+  <aside class="sidebar" aria-label="Navigation d'administration">
+    <p class="sidebar-title">ADMINISTRATION</p>
+    <nav>
+      <a href="{{ url_for('admin.tableau_de_bord') }}" class="side-link {{ 'is-active' if endpoint == 'admin.tableau_de_bord' }}">{{ icon('layout-dashboard') }}Tableau de bord</a>
+      <a href="{{ url_for('admin.pharmacies') }}" class="side-link {{ 'is-active' if endpoint.startswith('admin.pharmacie') }}">{{ icon('hospital') }}Pharmacies</a>
+      <a href="{{ url_for('admin.planning') }}" class="side-link {{ 'is-active' if endpoint.startswith('admin.garde') or endpoint == 'admin.planning' }}">{{ icon('calendar-days') }}Planning des gardes</a>
+      <a href="{{ url_for('admin.statistiques') }}" class="side-link {{ 'is-active' if endpoint.startswith('admin.stat') or endpoint.startswith('admin.export') }}">{{ icon('chart-line') }}Statistiques</a>
+      <form method="post" action="{{ url_for('auth.deconnexion') }}">{{ csrf() }}<button type="submit" class="side-link side-logout">{{ icon('log-out') }}Déconnexion</button></form>
+    </nav>
+    <div class="side-card">{{ icon('map-pin') }}<strong>Réseau de Douala</strong><span>{{ reseau_total|default(25) }} pharmacies référencées</span></div>
+  </aside>
+  <main class="admin-main">
+    {% block content %}{% endblock %}
+    <footer class="admin-footer">
+      <strong>PharmaGarde Douala</strong>
+      {% if demo_mode %}<span class="muted">Données illustratives : stocks, prix, statistiques et gardes non vérifiés.</span>{% endif %}
+    </footer>
+  </main>
+</div>
+{% endblock %}

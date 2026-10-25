@@ -1,0 +1,68 @@
+{% extends "layouts/admin.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% block title %}Tableau de bord · Administration PharmaGarde{% endblock %}
+{% block content %}
+<p class="eyebrow">Espace administrateur</p>
+<h1>Tableau de bord</h1>
+<p class="lead">Supervisez les pharmacies, les gardes et la disponibilité des médicaments.</p>
+<p class="muted">{{ now|date_fr }} · {{ now|heure_fr }}{% if demo_mode %} · Démonstration{% endif %}</p>
+{{ messages() }}
+
+<div class="grid grid-4 kpis">
+  <article class="card kpi"><span class="kpi-icon kpi-green">{{ icon('hospital') }}</span><h2>Pharmacies</h2><p class="kpi-value">{{ nb_pharmacies }}</p><p class="muted">Dans le réseau de Douala</p></article>
+  <article class="card kpi"><span class="kpi-icon kpi-green">{{ icon('calendar-days') }}</span><h2>De garde maintenant</h2><p class="kpi-value">{{ nb_de_garde }}</p><p class="muted">Le {{ now|date_fr(False) }} à {{ now|heure_fr }}</p></article>
+  <article class="card kpi"><span class="kpi-icon kpi-green">{{ icon('pill') }}</span><h2>Médicaments déclarés</h2><p class="kpi-value">{{ nb_medicaments }}</p><p class="muted">Références du catalogue</p></article>
+  <article class="card kpi"><span class="kpi-icon kpi-red">{{ icon('triangle-alert') }}</span><h2>En rupture partout</h2><p class="kpi-value text-red">{{ ruptures|length }}</p><p class="muted">Médicaments à surveiller</p></article>
+</div>
+
+{% if stale %}
+<div class="alert alert-amber alert-wide" role="alert">{{ icon('triangle-alert') }}<span>{{ stale|length }} pharmacie{{ 's' if stale|length > 1 }} n'{{ 'ont' if stale|length > 1 else 'a' }} pas actualisé {{ 'leurs' if stale|length > 1 else 'ses' }} informations depuis plus de 7 jours. Vérifiez {{ 'leurs' if stale|length > 1 else 'ses' }} déclarations avant de {{ 'les' if stale|length > 1 else 'la' }} utiliser.</span></div>
+{% endif %}
+
+<div class="admin-cols">
+  <section class="card panel">
+    <h2>Gardes de cette semaine</h2>
+    <p class="muted small">{{ semaine.debut|plage_semaine }} · {{ semaine.total }} garde{{ 's' if semaine.total > 1 }}</p>
+    {% for j in semaine.jours %}
+    <div class="day-block">
+      <h3 class="day-title">{{ j.date|jour_fr }} {{ j.date|date_fr(False) }}</h3>
+      {% for g in j.gardes %}
+      <div class="day-item">
+        <strong>{{ g.pharmacie_nom }}</strong>
+        <span class="muted">{{ g.quartier_nom }} · {{ g.debut|heure_courte }}–{{ g.fin|heure_courte }}</span>
+        <span class="muted">Fin le {{ g.fin|jj_mm }} à {{ g.fin|heure_courte }}{% if g.fin is lendemain(g.debut) %} (lendemain){% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="muted">Aucune garde cette semaine.</p>{% endfor %}
+    <a class="btn btn-outline" href="{{ url_for('admin.planning') }}">{{ icon('calendar-days') }}Voir le planning des gardes</a>
+  </section>
+
+  <div class="stack">
+    <section class="card panel">
+      <h2>Pharmacies sans mise à jour depuis plus de 7 jours</h2>
+      {% if stale %}
+      <span class="pill pill-amber">{{ icon('triangle-alert') }}{{ stale|length }} pharmacie{{ 's' if stale|length > 1 }} à relancer</span>
+      {% for s in stale[:6] %}
+      <div class="stale-item">
+        <strong>{{ s.nom }}</strong>
+        <span class="muted">{{ s.quartier_nom }} · Dernière mise à jour : {{ s.derniere_dt|date_fr }}</span>
+        <span class="pill pill-amber">{{ icon('triangle-alert') }}{{ s.jours }} jours sans mise à jour</span>
+      </div>
+      {% endfor %}
+      {% else %}<p class="muted">Toutes les pharmacies ont actualisé leurs stocks cette semaine.</p>{% endif %}
+      <a class="btn btn-outline" href="{{ url_for('admin.pharmacies') }}">Consulter les pharmacies</a>
+    </section>
+
+    <section class="card panel">
+      <h2>Médicaments en rupture partout</h2>
+      {% if ruptures %}<span class="pill pill-red">{{ icon('triangle-alert') }}{{ ruptures|length }} médicament{{ 's' if ruptures|length > 1 }}</span>
+      {% for r in ruptures[:6] %}
+      <div class="rupture-card">{{ icon('triangle-alert') }}<div><strong>{{ r.nom }} {{ r.dosage }}</strong><span>En rupture partout · 0 unité déclarée</span><small>Aucune disponibilité dans le réseau actif{% if demo_mode %} · données de démonstration{% endif %}</small></div></div>
+      {% endfor %}
+      {% else %}<p class="muted">Aucun médicament n'est en rupture dans tout le réseau.</p>{% endif %}
+      <a class="btn btn-outline" href="{{ url_for('admin.statistiques') }}">Voir les statistiques</a>
+    </section>
+  </div>
+</div>
+{% endblock %}

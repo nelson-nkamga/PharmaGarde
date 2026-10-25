@@ -1,0 +1,24 @@
+{% extends "layouts/base.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block body %}
+<header class="site-header">
+  <div class="container header-row header-row-ph">
+    {{ logo(url_for('pharmacien.tableau_de_bord')) }}
+    <nav class="main-nav" aria-label="Espace pharmacien">
+      <a href="{{ url_for('pharmacien.tableau_de_bord') }}" class="{{ 'is-active' if endpoint == 'pharmacien.tableau_de_bord' }}">Tableau de bord</a>
+      <a href="{{ url_for('pharmacien.stocks') }}" class="{{ 'is-active' if endpoint.startswith('pharmacien.') and endpoint not in ('pharmacien.tableau_de_bord', 'pharmacien.gardes') }}">Mes stocks</a>
+      <a href="{{ url_for('pharmacien.gardes') }}" class="{{ 'is-active' if endpoint == 'pharmacien.gardes' }}">Mes gardes</a>
+    </nav>
+    <form method="post" action="{{ url_for('auth.deconnexion') }}" class="logout-form">{{ csrf() }}<button class="btn btn-outline" type="submit">Se déconnecter</button></form>
+    <p class="header-pharmacie">{{ icon('map-pin') }}<strong>{{ user.pharmacie_label }}</strong></p>
+  </div>
+</header>
+<main class="page">{% block content %}{% endblock %}</main>
+<footer class="site-footer">
+  <div class="container">
+    <p class="footer-strong-plain">PharmaGarde Douala · Espace pharmacien</p>
+    {% if demo_mode %}<p class="muted">Données illustratives : stocks, prix et gardes non vérifiés.</p>{% endif %}
+  </div>
+</footer>
+{% endblock %}

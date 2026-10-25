@@ -1,0 +1,118 @@
+{% extends "layouts/admin.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% block title %}Pharmacies · Administration PharmaGarde{% endblock %}
+{% block content %}
+<p class="eyebrow">Espace administrateur</p>
+<h1>Pharmacies</h1>
+<p class="lead">Gérez les fiches et les accès des pharmacies du réseau.</p>
+<p class="muted">{{ now|date_fr }} · {{ now|heure_fr }}{% if demo_mode %} · Démonstration{% endif %}</p>
+{{ messages() }}
+<a class="btn btn-primary mt-sm" href="{{ url_for('admin.pharmacie_nouvelle') }}">{{ icon('plus') }}Ajouter une pharmacie</a>
+
+<form class="card filter-card" method="get" action="{{ url_for('admin.pharmacies') }}" role="search">
+  <label class="strong" for="q">Rechercher une pharmacie</label>
+  <div class="searchbox searchbox-plain">
+    <input id="q" name="q" type="search" value="{{ data.q }}" placeholder="Nom, quartier ou e-mail" autocomplete="off" maxlength="60">
+    <button class="searchbox-btn" type="submit" aria-label="Rechercher">{{ icon('search') }}</button>
+  </div>
+  <div class="chips">
+    {% for cle, libelle in (('toutes', 'Toutes'), ('actives', 'Actives'), ('desactivees', 'Désactivées')) %}
+    <a class="chip {{ 'chip-on' if data.statut == cle }}" href="{{ url_for('admin.pharmacies', q=data.q or None, statut=cle if cle != 'toutes' else None) }}">{{ libelle }}</a>
+    {% endfor %}
+  </div>
+</form>
+
+<p class="muted small count-line">{{ data.total_reseau }} pharmacies référencées{% if demo_mode %} · Coordonnées fictives{% endif %}</p>
+
+<div class="table-card"><div class="table-scroll">
+<table class="table">
+  <thead><tr><th>Nom</th><th>Quartier</th><th>Téléphone</th><th>E-mail du pharmacien</th><th>Statut</th><th>Actions</th></tr></thead>
+  <tbody>
+  {% for p in data['items'] %}
+  <tr>
+    <th scope="row">{{ p.nom }}</th>
+    <td class="muted">{{ p.quartier_nom }}</td>
+    <td class="muted nowrap">{{ p.telephone }}</td>
+    <td class="muted">{{ p.email }}</td>
+    <td>{% if p.actif %}<span class="badge badge-green">{{ icon('circle-check') }}Active</span>{% else %}<span class="badge badge-grey">{{ icon('circle-minus') }}Désactivée</span>{% endif %}</td>
+    <td class="actions-stack">
+      <a class="btn btn-outline btn-sm" href="{{ url_for('admin.pharmacie_modifier_form', pharmacie_id=p.id) }}">{{ icon('pencil') }}Modifier</a>
+      {% if p.actif %}
+        <a class="btn btn-outline btn-sm" href="{{ url_for('admin.pharmacie_desactiver_form', pharmacie_id=p.id) }}">Désactiver</a>
+      {% else %}
+        <form method="post" action="{{ url_for('admin.pharmacie_reactiver', pharmacie_id=p.id) }}">{{ csrf() }}<button class="btn btn-outline btn-sm" type="submit">Réactiver</button></form>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="table-empty muted">Aucune pharmacie ne correspond à ces critères.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% if data.total %}{{ pagination(data.page, data.pages, url_pharmacies, data.debut, data.fin, data.total, data.per_page, 'pharmacies') }}{% endif %}
+{% endblock %}
+
+{% block modal %}
+{% if modal %}
+<div class="modal-backdrop" data-modal>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 id="modal-title">{{ {'creer': 'Ajouter une pharmacie', 'modifier': 'Modifier la pharmacie', 'desactiver': 'Désactiver cette pharmacie ?'}[modal] }}</h2>
+      <a class="modal-close" href="{{ url_pharmacies() }}" aria-label="Fermer" data-modal-close>{{ icon('x') }}</a>
+    </div>
+
+    {% if modal == 'desactiver' %}
+      <span class="pill pill-amber">{{ icon('triangle-alert') }}Confirmation requise</span>
+      <div class="existing-card"><h3>{{ cible.nom }}</h3><p class="muted">{{ cible.quartier_nom }} · {{ cible.telephone }}</p><p class="muted">{{ cible.email }}</p></div>
+      <div class="alert alert-amber">{{ icon('triangle-alert') }}<span>La pharmacie ne sera plus visible dans les résultats publics et son accès pharmacien sera suspendu.</span></div>
+      <p class="muted">Cette action ne supprime ni sa fiche ni son historique de stocks et de gardes. Elle pourra être réactivée ultérieurement.</p>
+      <form method="post" action="{{ url_for('admin.pharmacie_desactiver', pharmacie_id=cible.id) }}" class="modal-actions">
+        {{ csrf() }}
+        <a class="btn btn-outline" href="{{ url_pharmacies() }}">Annuler</a>
+        <button class="btn btn-danger" type="submit">Désactiver</button>
+      </form>
+    {% else %}
+      <p class="muted">{{ "Créez une fiche et un accès pharmacien pour rejoindre le réseau." if modal == 'creer' else "Modifiez la fiche et l'accès de la pharmacie." }}</p>
+      <p class="muted small">* Champs obligatoires{% if demo_mode %} · Données fictives{% endif %}</p>
+      <form method="post" novalidate action="{{ url_for('admin.pharmacie_creer') if modal == 'creer' else url_for('admin.pharmacie_modifier', pharmacie_id=cible.id) }}">
+        {{ csrf() }}
+        <input type="hidden" name="q" value="{{ data.q }}"><input type="hidden" name="statut" value="{{ data.statut }}"><input type="hidden" name="page" value="{{ data.page }}">
+        <label class="strong" for="f-nom">Nom de la pharmacie *</label>
+        <input class="input {{ 'is-invalid' if erreurs.nom }}" id="f-nom" name="nom" maxlength="80" value="{{ valeurs.nom }}" required>
+        {% if erreurs.nom %}<p class="field-error">{{ erreurs.nom }}</p>{% endif %}
+        <label class="strong" for="f-adresse">Adresse *</label>
+        <input class="input {{ 'is-invalid' if erreurs.adresse }}" id="f-adresse" name="adresse" maxlength="160" value="{{ valeurs.adresse }}" required>
+        {% if erreurs.adresse %}<p class="field-error">{{ erreurs.adresse }}</p>{% endif %}
+        <div class="form-2">
+          <div>
+            <label class="strong" for="f-quartier">Quartier *</label>
+            <div class="selectbox selectbox-plain"><select class="input" id="f-quartier" name="quartier_id" required>
+              <option value="">Choisir…</option>
+              {% for qt in quartiers %}<option value="{{ qt.id }}" {{ 'selected' if valeurs.quartier_id|string == qt.id|string }}>{{ qt.nom }}</option>{% endfor %}
+            </select>{{ icon('chevron-down') }}</div>
+            {% if erreurs.quartier_id %}<p class="field-error">{{ erreurs.quartier_id }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="strong" for="f-tel">Téléphone *</label>
+            <input class="input {{ 'is-invalid' if erreurs.telephone }}" id="f-tel" name="telephone" inputmode="tel" value="{{ valeurs.telephone }}" required>
+            {% if erreurs.telephone %}<p class="field-error">{{ erreurs.telephone }}</p>{% endif %}
+          </div>
+        </div>
+        <label class="strong" for="f-email">E-mail du pharmacien *</label>
+        <input class="input {{ 'is-invalid' if erreurs.email }}" id="f-email" name="email" type="email" maxlength="120" autocomplete="off" value="{{ valeurs.email }}" required>
+        {% if erreurs.email %}<p class="field-error">{{ erreurs.email }}</p>{% endif %}
+        <label class="strong" for="f-mdp">{{ 'Mot de passe temporaire *' if modal == 'creer' else 'Nouveau mot de passe temporaire' }}</label>
+        <div class="input-wrap">
+          <input class="input {{ 'is-invalid' if erreurs.mot_de_passe }}" id="f-mdp" name="mot_de_passe" type="password" autocomplete="new-password" {{ 'required' if modal == 'creer' }}>
+          <button type="button" class="input-eye" data-toggle-password aria-label="Afficher le mot de passe">{{ icon('eye') }}</button>
+        </div>
+        {% if erreurs.mot_de_passe %}<p class="field-error">{{ erreurs.mot_de_passe }}</p>{% endif %}
+        <p class="muted small">{{ "12 caractères minimum. À communiquer au pharmacien, puis à changer lors de sa connexion." if modal == 'creer' else "Laissez vide pour conserver le mot de passe actuel. 12 caractères minimum." }}</p>
+        <div class="modal-actions">
+          <a class="btn btn-outline" href="{{ url_pharmacies() }}">Annuler</a>
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

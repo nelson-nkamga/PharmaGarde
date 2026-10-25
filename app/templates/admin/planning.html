@@ -1,0 +1,128 @@
+{% extends "layouts/admin.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% block title %}Planning des gardes · Administration PharmaGarde{% endblock %}
+{% block content %}
+<p class="eyebrow">Espace administrateur</p>
+<h1>Planning des gardes</h1>
+<p class="lead">Organisez les gardes des pharmacies sur un cycle de huit semaines.</p>
+<p class="muted">{{ now|date_fr }} · {{ now|heure_fr }}{% if demo_mode %} · Démonstration{% endif %}</p>
+{{ messages() }}
+<a class="btn btn-primary mt-sm" href="{{ url_for('admin.garde_nouvelle', semaine=data.numero) }}">{{ icon('plus') }}Ajouter une garde</a>
+
+<div class="callout callout-flat">{{ icon('info') }}<p>{% if demo_mode %}Planning de démonstration, non opérationnel. {% endif %}{{ data.nb_en_cours }} pharmacie{{ 's' if data.nb_en_cours > 1 }} de garde le {{ now|date_fr }} à {{ now|heure_fr }}.</p></div>
+
+<p class="strong cycle-label">Cycle de {{ data.cycle.n }} semaines · {{ data.cycle.debut|date_fr(False) }}–{{ data.cycle.fin|date_fr }}</p>
+<div class="week-pills">
+  {% for n, debut in data.cycle.semaines %}<a class="chip {{ 'chip-on' if n == data.numero }}" href="{{ url_for('admin.planning', semaine=n) }}">Semaine {{ n }}</a>{% endfor %}
+</div>
+
+<section class="card week-card">
+  <div class="week-nav">
+    {% if data.numero > 1 %}<a class="btn btn-outline btn-sm" href="{{ url_for('admin.planning', semaine=data.numero - 1) }}">‹ Précédente</a>{% else %}<span class="btn btn-sm btn-disabled">‹ Précédente</span>{% endif %}
+    <span class="chip chip-on">Semaine {{ data.numero }} / {{ data.cycle.n }}</span>
+    {% if data.numero < data.cycle.n %}<a class="btn btn-outline btn-sm" href="{{ url_for('admin.planning', semaine=data.numero + 1) }}">Suivante ›</a>{% else %}<span class="btn btn-sm btn-disabled">Suivante ›</span>{% endif %}
+  </div>
+  <h2>{{ data.debut|plage_semaine }}</h2>
+  <p class="muted small">Vue semaine · Heure de Douala (UTC+1) · Les gardes de nuit se terminent le lendemain.</p>
+
+  {% for j in data.jours %}
+  <div class="day-row">
+    <div class="day-label"><strong>{{ j.date|jour_fr }}</strong><span>{{ j.date|date_fr(False) }}</span><span class="muted">{{ j.gardes|length }} garde{{ 's' if j.gardes|length > 1 }}</span></div>
+    <div class="day-gardes {{ 'is-multi' if j.gardes|length > 1 }}">
+      {% for item in j.gardes %}
+      {% set g = item.garde %}
+      <article class="garde-tile tone-{{ g.pharmacie_id % 3 }} {{ 'is-live' if item.statut == 'en_cours' }}">
+        <p class="tile-status">
+          {% if item.statut == 'en_cours' %}{{ icon('moon') }}En cours{% elif item.statut == 'a_venir' %}{{ icon('calendar-days') }}À venir{% else %}{{ icon('circle-check') }}Terminée{% endif %}
+        </p>
+        <h3>{{ g.pharmacie_nom }}</h3>
+        <p class="muted">{{ g.quartier_nom }}</p>
+        <p class="tile-hours">{{ g.debut|heure_fr }}–{{ g.fin|heure_fr }}</p>
+        <p class="muted small">Fin le {{ g.fin|jj_mm }} à {{ g.fin|heure_fr }}{% if g.fin is lendemain(g.debut) %} (lendemain){% endif %}</p>
+        <div class="tile-actions">
+          <a class="icon-btn" href="{{ url_for('admin.garde_modifier_form', garde_id=g.id, semaine=data.numero) }}" aria-label="Modifier la garde de {{ g.pharmacie_nom }}">{{ icon('pencil') }}</a>
+          <a class="icon-btn icon-btn-danger" href="{{ url_for('admin.garde_supprimer_form', garde_id=g.id, semaine=data.numero) }}" aria-label="Supprimer la garde de {{ g.pharmacie_nom }}">{{ icon('trash-2') }}</a>
+        </div>
+      </article>
+      {% else %}<p class="muted day-empty">Aucune garde</p>{% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+<p class="legend-actions"><span>{{ icon('pencil') }}Modifier une garde</span><span class="text-red">{{ icon('trash-2') }}Supprimer une garde</span></p>
+{% endblock %}
+
+{% block modal %}
+{% if modal %}
+<div class="modal-backdrop" data-modal>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 id="modal-title">{{ {'ajouter': 'Ajouter une garde', 'modifier': 'Modifier la garde', 'supprimer': 'Supprimer cette garde ?'}[modal] }}</h2>
+      <a class="modal-close" href="{{ url_for('admin.planning', semaine=data.numero) }}" aria-label="Fermer" data-modal-close>{{ icon('x') }}</a>
+    </div>
+
+    {% if modal == 'supprimer' %}
+      <span class="pill pill-red">{{ icon('triangle-alert') }}Suppression définitive</span>
+      <div class="existing-card">
+        <h3>{{ garde.pharmacie_nom }}</h3>
+        <p class="muted">{{ garde.quartier_nom }}</p>
+        <p class="strong">Début : {{ garde.debut|date_fr }} à {{ garde.debut|heure_fr }}</p>
+        <p class="strong">Fin : {{ garde.fin|date_fr }} à {{ garde.fin|heure_fr }}</p>
+        <p class="muted">{{ garde.type_garde }}{% if garde.fin is lendemain(garde.debut) %} · fin le lendemain{% endif %}</p>
+      </div>
+      <div class="alert alert-red">{{ icon('triangle-alert') }}<span>Cette garde sera retirée définitivement du planning. Cette suppression est irréversible.</span></div>
+      <p class="muted">Seule cette garde sera supprimée. La pharmacie, ses autres gardes et son historique de stocks sont conservés.</p>
+      <form method="post" action="{{ url_for('admin.garde_supprimer', garde_id=garde.id) }}" class="modal-actions">
+        {{ csrf() }}
+        <a class="btn btn-outline" href="{{ url_for('admin.planning', semaine=data.numero) }}">Annuler</a>
+        <button class="btn btn-danger" type="submit">Supprimer</button>
+      </form>
+    {% else %}
+      <p class="muted">Affectez une pharmacie et précisez le créneau complet. Les horaires sont exprimés à l'heure de Douala.</p>
+      <p class="muted small">* Champs obligatoires{% if demo_mode %} · Planning illustratif{% endif %}</p>
+      {% set conflit = conflit_message is not none %}
+      <form method="post" novalidate data-garde-form data-check-url="{{ url_for('admin.garde_verifier') }}" {% if garde %}data-garde-id="{{ garde.id }}"{% endif %}
+            action="{{ url_for('admin.garde_creer') if modal == 'ajouter' else url_for('admin.garde_modifier', garde_id=garde.id) }}">
+        {{ csrf() }}
+        <input type="hidden" name="semaine" value="{{ data.numero }}">
+        <label class="strong" for="g-pharmacie">Pharmacie *</label>
+        <div class="selectbox selectbox-plain">
+          <select class="input {{ 'is-invalid' if erreurs.pharmacie_id }}" id="g-pharmacie" name="pharmacie_id" required data-pharmacie-select>
+            <option value="">Choisir une pharmacie…</option>
+            {% for p in pharmacies %}<option value="{{ p.id }}" data-quartier="{{ p.quartier_nom }}" {{ 'selected' if valeurs.pharmacie_id|string == p.id|string }}>{{ p.nom }}</option>{% endfor %}
+          </select>{{ icon('chevron-down') }}
+        </div>
+        {% set sel = pharmacies|selectattr('id', 'equalto', valeurs.pharmacie_id|int)|first %}
+        <p class="muted small" data-pharmacie-hint>{% if sel %}{{ sel.quartier_nom }} · Pharmacie active{% endif %}</p>
+        {% if erreurs.pharmacie_id %}<p class="field-error">{{ erreurs.pharmacie_id }}</p>{% endif %}
+
+        <div class="form-datetime">
+          <div><label class="strong" for="g-date-debut">Date de début *</label>
+            <input class="input {{ 'is-invalid' if 'date_debut' in erreurs }}" id="g-date-debut" type="date" name="date_debut" value="{{ valeurs.date_debut }}" required data-g-field></div>
+          <div><label class="strong" for="g-heure-debut">Heure *</label>
+            <input class="input {{ 'is-invalid' if conflit or 'date_debut' in erreurs }}" id="g-heure-debut" type="time" name="heure_debut" value="{{ valeurs.heure_debut }}" required data-g-field></div>
+          <div><label class="strong" for="g-date-fin">Date de fin *</label>
+            <input class="input {{ 'is-invalid' if 'date_fin' in erreurs }}" id="g-date-fin" type="date" name="date_fin" value="{{ valeurs.date_fin }}" required data-g-field></div>
+          <div><label class="strong" for="g-heure-fin">Heure *</label>
+            <input class="input {{ 'is-invalid' if conflit or 'date_fin' in erreurs }}" id="g-heure-fin" type="time" name="heure_fin" value="{{ valeurs.heure_fin }}" required data-g-field></div>
+        </div>
+        {% if erreurs.date_debut %}<p class="field-error">{{ erreurs.date_debut }}</p>{% endif %}
+        {% if erreurs.date_fin %}<p class="field-error">{{ erreurs.date_fin }}</p>{% endif %}
+
+        <div data-conflit>
+          {% if conflit %}
+          <div class="alert alert-red" role="alert">{{ icon('triangle-alert') }}<span>{{ conflit_message }}</span></div>
+          {% if conflit_creneau %}<p class="text-red strong">{{ conflit_creneau }}</p>{% endif %}
+          <p class="muted">Modifiez les dates ou les heures pour pouvoir enregistrer cette garde.</p>
+          {% endif %}
+        </div>
+        <div class="modal-actions">
+          <a class="btn btn-outline" href="{{ url_for('admin.planning', semaine=data.numero) }}">Annuler</a>
+          <button class="btn btn-primary {{ 'is-disabled' if conflit }}" type="submit" data-save>Enregistrer</button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

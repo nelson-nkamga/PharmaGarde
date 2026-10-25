@@ -1,0 +1,19 @@
+[Unit]
+Description=PharmaGarde Douala (Gunicorn)
+After=network.target
+
+[Service]
+User=pharmagarde
+Group=pharmagarde
+WorkingDirectory=/opt/pharmagarde
+EnvironmentFile=/etc/pharmagarde.env
+ExecStart=/opt/pharmagarde/.venv/bin/gunicorn --workers 2 --bind unix:/run/pharmagarde/app.sock wsgi:app
+RuntimeDirectory=pharmagarde
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/pharmagarde
+
+[Install]
+WantedBy=multi-user.target

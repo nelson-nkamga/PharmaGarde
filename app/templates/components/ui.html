@@ -1,0 +1,61 @@
+{# Composants réutilisables #}
+{% macro icon(name, cls='') -%}
+<svg class="icon {{ cls }}" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='img/icons.svg') }}#i-{{ name }}"></use></svg>
+{%- endmacro %}
+
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{% macro logo(href) -%}
+<a class="logo" href="{{ href }}" aria-label="PharmaGarde Douala, accueil">
+  <span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 4h5v5.5H20v5h-5.5V20h-5v-5.5H4v-5h5.5z" fill="#fff"/></svg></span>
+  <span class="logo-text"><strong>PharmaGarde</strong><small>DOUALA</small></span>
+</a>
+{%- endmacro %}
+
+{% macro messages() -%}
+{% with msgs = get_flashed_messages(with_categories=true) %}
+{% for cat, msg in msgs %}
+<div class="toast toast-{{ cat }}" role="status" data-toast>
+  {{ icon('circle-check') }}<span>{{ msg }}</span>
+  <button type="button" class="toast-close" data-dismiss aria-label="Fermer">{{ icon('x') }}</button>
+</div>
+{% endfor %}
+{% endwith %}
+{%- endmacro %}
+
+{# Étiquettes d'état d'un stock #}
+{% macro stock_badge(quantite) -%}
+{%- set st = statut_stock(quantite) -%}
+{%- if st == 'rupture' -%}<span class="badge badge-red">{{ icon('triangle-alert') }}Rupture</span>
+{%- elif st == 'faible' -%}<span class="badge badge-amber">{{ icon('triangle-alert') }}Stock faible</span>
+{%- else -%}<span class="badge badge-green">{{ icon('circle-check') }}En stock</span>{%- endif -%}
+{%- endmacro %}
+
+{# Ancienneté : bandeau détaillé (recherche publique) #}
+{% macro fraicheur_bandeau(date) -%}
+{%- set a = date|anciennete(now) -%}
+<div class="fresh fresh-{{ a.niveau }}">
+  {{ icon('circle-check' if a.niveau == 'recent' else 'triangle-alert') }}
+  <div><strong>{{ a.texte }}</strong>{% if a.a_confirmer %}<span class="fresh-sub">À confirmer par téléphone</span>{% endif %}</div>
+</div>
+{%- endmacro %}
+
+{# Ancienneté : ligne compacte (tableau pharmacien) #}
+{% macro fraicheur_ligne(date) -%}
+{%- set a = date|anciennete(now) -%}
+<div class="date-main">{{ date|date_fr }}</div>
+<div class="fresh-line fresh-{{ a.niveau }}">{{ icon('circle-check' if a.niveau == 'recent' else 'triangle-alert') }}<span>{{ a.court }}</span></div>
+{%- endmacro %}
+
+{% macro pagination(page, pages, url, debut, fin, total, per_page, unite) -%}
+<p class="muted small page-count">{{ debut }}–{{ fin }} sur {{ total }} {{ unite }} · {{ per_page }} par page</p>
+<nav class="pager" aria-label="Pagination">
+  {% if page > 1 %}<a class="pager-btn" href="{{ url(page=page-1) }}">Précédent</a>{% else %}<span class="pager-btn is-disabled">Précédent</span>{% endif %}
+  {% for n in range(1, pages + 1) %}
+    {% if n == page %}<span class="pager-btn is-current" aria-current="page">{{ n }}</span>{% else %}<a class="pager-btn" href="{{ url(page=n) }}">{{ n }}</a>{% endif %}
+  {% endfor %}
+  {% if page < pages %}<a class="pager-btn" href="{{ url(page=page+1) }}">Suivant</a>{% else %}<span class="pager-btn is-disabled">Suivant</span>{% endif %}
+</nav>
+{%- endmacro %}

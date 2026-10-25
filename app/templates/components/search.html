@@ -1,0 +1,35 @@
+{% from "components/ui.html" import icon with context %}
+{# Carte « Rechercher un médicament » partagée (accueil, recherche, résultats) #}
+{% macro search_card(quartiers, quartier_id, q='', home=False, en_stock=False, chip=False) %}
+<form class="card search-card" action="{{ url_for('public.medicaments') }}" method="get" role="search" data-search-form{% if home %} data-home-url="{{ url_for('public.accueil') }}"{% endif %}>
+  <h2 class="card-title">Rechercher un médicament</h2>
+  <div class="search-grid">
+    <div>
+      <label class="field-label" for="q">Nom du médicament</label>
+      <div class="searchbox">
+        {{ icon('search') }}
+        <input id="q" name="q" type="search" value="{{ q }}" placeholder="Ex. Paracétamol, Amoxicilline…" autocomplete="off" maxlength="80" data-med-input>
+        {% if q %}<a class="searchbox-clear" href="{{ url_for('public.medicaments', quartier=quartier_id or None) }}" aria-label="Effacer la recherche">{{ icon('x') }}</a>{% endif %}
+        <button class="btn btn-primary" type="submit">Rechercher</button>
+      </div>
+    </div>
+    <div>
+      <div class="field-row"><label class="strong" for="quartier">Quartier</label><span class="muted small">{{ quartiers|length }} quartiers de Douala</span></div>
+      <div class="selectbox">
+        {{ icon('map-pin') }}
+        <select id="quartier" name="quartier" data-quartier>
+          <option value="">Tous les quartiers</option>
+          {% for qt in quartiers %}<option value="{{ qt.id }}" {{ 'selected' if qt.id == quartier_id }}>{{ qt.nom }}</option>{% endfor %}
+        </select>
+        {{ icon('chevron-down') }}
+      </div>
+      {% if en_stock %}
+        <input type="hidden" name="stock" value="1">
+        <p class="filter-active"><span class="chip chip-on">{{ icon('circle-check') }}En stock</span><span class="muted small">Filtre actif</span></p>
+      {% elif chip %}
+        <p class="filter-active"><a class="chip" href="{{ url_for('public.medicaments', q=q, quartier=quartier_id or None, stock=1) }}">En stock</a><span class="muted small">Afficher seulement les stocks disponibles</span></p>
+      {% endif %}
+    </div>
+  </div>
+</form>
+{% endmacro %}

@@ -1,0 +1,16 @@
+{% extends "layouts/base.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% block robots %}noindex{% endblock %}
+{% block title %}Page introuvable · PharmaGarde Douala{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block body %}
+<main class="auth-wrap">
+  <div class="card auth-card center">
+    {{ logo(url_for('public.accueil')) }}
+    <p class="eyebrow">Erreur {{ status }}</p>
+    <h1>Page introuvable</h1>
+    <p class="muted">{{ message or "La page demandée n'existe pas ou a été déplacée." }}</p>
+    <a class="btn btn-primary" href="{{ url_for('public.accueil') }}">{{ icon('arrow-left') }}Retour à l'accueil</a>
+  </div>
+</main>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "layouts/public.html" %}
+{% from "components/ui.html" import icon, logo, csrf, messages, stock_badge, fraicheur_bandeau, fraicheur_ligne, pagination with context %}
+{% block title %}Rechercher un médicament · PharmaGarde Douala{% endblock %}
+{% block content %}
+<div class="container">
+  <h1 class="mt-sm">Rechercher un médicament</h1>
+  <p class="lead">Choisissez le bon dosage et la bonne forme pour consulter les stocks déclarés à Douala.</p>
+  <div class="two-col">
+    <form action="{{ url_for('public.medicaments') }}" method="get" role="search" data-search-form data-suggest-url="{{ url_for('api.suggestions') }}">
+      <label class="strong" for="q">Nom du médicament</label>
+      <div class="searchbox searchbox-focus">
+        {{ icon('search') }}
+        <input id="q" name="q" type="search" placeholder="Ex. Paracétamol, Amoxicilline…" autocomplete="off" maxlength="80" autofocus data-med-input>
+        <button class="btn btn-primary" type="submit">Rechercher</button>
+      </div>
+      <input type="hidden" name="quartier" value="{{ quartier_id or '' }}" data-quartier-mirror>
+      <div class="card suggestions" data-suggestions>
+        <div class="suggestions-head"><strong>Médicaments fréquents</strong><p class="muted">Saisissez un nom ou choisissez une suggestion.</p></div>
+        <ul class="suggestion-list" data-suggestion-list>
+          {% for m in frequents %}
+          <li><a class="suggestion" href="{{ url_for('public.medicaments', m=m.id, quartier=quartier_id or None) }}" data-fill="{{ m.libelle }}">
+            <span class="suggestion-icon">{{ icon('pill') }}</span>
+            <span class="suggestion-text"><strong>{{ m.nom }}</strong><span class="muted">{{ m.dosage }} · {{ m.forme|pluriel }}</span></span>
+            {{ icon('arrow-up-left', 'suggestion-arrow') }}
+          </a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </form>
+    <aside>
+      <form class="card side-card-public" action="{{ url_for('public.medicaments') }}" method="get">
+        <h2>Où cherchez-vous ?</h2>
+        <div class="field-row"><label class="strong" for="quartier">Quartier</label><span class="muted small">{{ quartiers|length }} quartiers de Douala</span></div>
+        <div class="selectbox">{{ icon('map-pin') }}
+          <select id="quartier" name="quartier" data-quartier-side>
+            <option value="">Tous les quartiers</option>
+            {% for qt in quartiers %}<option value="{{ qt.id }}" {{ 'selected' if qt.id == quartier_id }}>{{ qt.nom }}</option>{% endfor %}
+          </select>{{ icon('chevron-down') }}</div>
+        <p class="muted small">Le quartier sera conservé pour votre recherche.</p>
+      </form>
+      <div class="callout callout-side">{{ icon('phone') }}<div><strong>Vérifiez votre ordonnance</strong><p>Le dosage et la forme comptent. Demandez conseil à un pharmacien en cas de doute.</p></div></div>
+    </aside>
+  </div>
+</div>
+{% endblock %}
